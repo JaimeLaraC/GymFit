@@ -60,19 +60,18 @@ gantt
 
 ---
 
-### Fase 1: Core — Ejercicios, Rutinas, Logging (6 semanas)
+### Fase 1: Core — Ejercicios, Rutinas, Logging (6 semanas) ✅
 
 **Branch:** `feature/workout-core`
 
-- [ ] Modelo de datos: Exercise, Routine, RoutineExercise, Program, Block
-- [ ] CRUD de ejercicios (biblioteca)
-- [ ] Filtros: músculo, patrón, equipo, dificultad
-- [ ] CRUD de rutinas con ejercicios prescritos
-- [ ] Ejecución de entrenamiento (logging en vivo)
-- [ ] Autocompletado con última sesión
-- [ ] Temporizador de descansos
-- [ ] Guardar sesión (Session + WorkoutSet)
-- [ ] Resumen post-entrenamiento
+- [x] Modelo de datos: Exercise, Routine, RoutineExercise, Program, Block
+- [x] Biblioteca de ejercicios con filtros (músculo, patrón, equipo)
+- [x] Sesión de entrenamiento en vivo (peso/reps/RIR)
+- [x] Autocompletado con datos de la sesión
+- [x] Temporizador de descansos con vibración háptica
+- [x] Guardar sesión (Session + WorkoutSet) via API
+- [x] Resumen post-entrenamiento con desglose
+- [ ] CRUD de rutinas con ejercicios prescritos (Fase 1b)
 
 **Criterio de éxito:** Poder registrar un entrenamiento completo en < 2 min extra vs sin app.
 
