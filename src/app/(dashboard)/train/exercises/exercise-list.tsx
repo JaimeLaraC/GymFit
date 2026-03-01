@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -167,34 +168,36 @@ export function ExerciseList({
                     </Card>
                 ) : (
                     filtered.map((exercise) => (
-                        <Card key={exercise.id} className="hover:bg-accent/50 transition-colors">
-                            <CardContent className="py-3 px-4">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <p className="font-medium text-sm truncate">
-                                            {exercise.isFavorite && "⭐ "}
-                                            {exercise.name}
-                                        </p>
-                                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                            <Badge variant="secondary" className="text-[10px] h-5">
-                                                {MUSCLE_LABELS[exercise.primaryMuscle] ||
-                                                    exercise.primaryMuscle}
-                                            </Badge>
-                                            <Badge variant="outline" className="text-[10px] h-5">
-                                                {EQUIPMENT_LABELS[exercise.equipment] ||
-                                                    exercise.equipment}
-                                            </Badge>
-                                            <Badge variant="outline" className="text-[10px] h-5">
-                                                {PATTERN_LABELS[exercise.pattern] || exercise.pattern}
-                                            </Badge>
+                        <Link key={exercise.id} href={`/train/exercises/${exercise.id}`}>
+                            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                                <CardContent className="py-3 px-4">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-sm truncate">
+                                                {exercise.isFavorite && "⭐ "}
+                                                {exercise.name}
+                                            </p>
+                                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                                <Badge variant="secondary" className="text-[10px] h-5">
+                                                    {MUSCLE_LABELS[exercise.primaryMuscle] ||
+                                                        exercise.primaryMuscle}
+                                                </Badge>
+                                                <Badge variant="outline" className="text-[10px] h-5">
+                                                    {EQUIPMENT_LABELS[exercise.equipment] ||
+                                                        exercise.equipment}
+                                                </Badge>
+                                                <Badge variant="outline" className="text-[10px] h-5">
+                                                    {PATTERN_LABELS[exercise.pattern] || exercise.pattern}
+                                                </Badge>
+                                            </div>
                                         </div>
+                                        <span className="text-xs text-muted-foreground whitespace-nowrap font-mono">
+                                            {exercise.minRepRange}-{exercise.maxRepRange} reps
+                                        </span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap font-mono">
-                                        {exercise.minRepRange}-{exercise.maxRepRange} reps
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </Link>
                     ))
                 )}
             </div>

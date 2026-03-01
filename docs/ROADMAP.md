@@ -77,16 +77,16 @@ gantt
 
 ---
 
-### Fase 2: Historial y Métricas (4 semanas)
+### Fase 2: Historial y Métricas (4 semanas) ✅
 
 **Branch:** `feature/history-metrics`
 
-- [ ] Historial de sesiones con filtros
-- [ ] Historial por ejercicio (todas las veces que hiciste press banca)
-- [ ] e1RM estimado por ejercicio
-- [ ] Volumen semanal por músculo (gráfica)
-- [ ] PRs automáticos (peso, reps, e1RM)
-- [ ] Gráficas con Recharts
+- [x] Historial de sesiones con filtros
+- [x] Historial por ejercicio (todas las veces que hiciste press banca)
+- [x] e1RM estimado por ejercicio
+- [x] Volumen semanal por músculo (gráfica)
+- [x] PRs automáticos (peso, reps, e1RM)
+- [x] Gráficas con Recharts
 
 ---
 
