@@ -90,17 +90,17 @@ gantt
 
 ---
 
-### Fase 3: Progreso — Score, Fotos, Medidas (4 semanas)
+### Fase 3: Progreso — Score, Fotos, Medidas (4 semanas) ✅
 
 **Branch:** `feature/progress`
 
-- [ ] Score global 0-100 con desglose
-- [ ] Tendencia de score (gráfica 4-8 semanas)
-- [ ] Subida de fotos de progreso
-- [ ] Comparación antes/después
-- [ ] Registro de métricas corporales (peso, medidas)
-- [ ] Peso suavizado (media móvil exponencial)
-- [ ] Detección de recomposición (peso estable + fuerza sube)
+- [x] Score global 0-100 con desglose
+- [x] Tendencia de score (gráfica 4-8 semanas)
+- [x] Subida de fotos de progreso
+- [x] Comparación antes/después
+- [x] Registro de métricas corporales (peso, medidas)
+- [x] Peso suavizado (media móvil exponencial)
+- [x] Detección de recomposición (peso estable + fuerza sube)
 
 ---
 
