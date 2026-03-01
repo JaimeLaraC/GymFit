@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// GymFit — Modelo de Datos
+// Basado en docs/reference/DATA_MODEL.md
+// =============================================
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  level       String   @default("beginner") // beginner | intermediate | advanced
+  goal        String   @default("hypertrophy") // hypertrophy | strength | recomposition | definition
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  programs          Program[]
+  sessions          Session[]
+  recoverySnapshots RecoverySnapshot[]
+  bodyMetrics       BodyMetric[]
+  progressPhotos    ProgressPhoto[]
+  meals             Meal[]
+  achievements      Achievement[]
+}
+
+model Program {
+  id                String   @id @default(cuid())
+  userId            String
+  name              String
+  durationWeeks     Int
+  periodizationType String   @default("linear") // linear | undulating | block | specialization
+  status            String   @default("active") // active | completed | paused
+  startDate         DateTime
+  endDate           DateTime?
+  createdAt         DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blocks   Block[]
+  routines Routine[]
+
+  @@index([userId])
+}
+
+model Block {
+  id        String @id @default(cuid())
+  programId String
+  name      String
+  weeks     Int
+  objective String @default("accumulation") // accumulation | intensification | realization | deload
+  order     Int
+
+  program  Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  routines Routine[]
+
+  @@index([programId])
+}
+
+model Routine {
+  id                  String   @id @default(cuid())
+  programId           String?
+  blockId             String?
+  name                String
+  dayOfWeek           Int? // 0-6 (domingo-sábado)
+  version             String   @default("v1")
+  estimatedDurationMin Int?
+  targetVolume        Int? // series objetivo
+  targetRIR           Int? // RIR objetivo
+  createdAt           DateTime @default(now())
+
+  program   Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
+  block     Block?            @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  exercises RoutineExercise[]
+  sessions  Session[]
+
+  @@index([programId])
+  @@index([blockId])
+}
+
+model Exercise {
+  id               String   @id @default(cuid())
+  name             String
+  primaryMuscle    String
+  secondaryMuscles String[] @default([])
+  pattern          String // push | pull | squat | hinge | carry | isolation
+  equipment        String // barbell | dumbbell | cable | machine | bodyweight
+  difficulty       String   @default("intermediate") // beginner | intermediate | advanced
+  minRepRange      Int      @default(6)
+  maxRepRange      Int      @default(12)
+  recommendedRIR   Int      @default(2)
+  cues             String[] @default([])
+  commonMistakes   String[] @default([])
+  notes            String?
+  isFavorite       Boolean  @default(false)
+  isAvoided        Boolean  @default(false)
+  avoidReason      String?
+
+  routineExercises RoutineExercise[]
+  workoutSets      WorkoutSet[]
+
+  @@index([primaryMuscle])
+  @@index([pattern])
+}
+
+model RoutineExercise {
+  id            String @id @default(cuid())
+  routineId     String
+  exerciseId    String
+  order         Int
+  targetSets    Int    @default(3)
+  targetMinReps Int    @default(6)
+  targetMaxReps Int    @default(12)
+  targetRIR     Int    @default(2)
+  restSeconds   Int    @default(120)
+  method        String @default("standard") // standard | double_progression | top_set_backoff | rest_pause
+
+  routine  Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@index([exerciseId])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  routineId   String?
+  date        DateTime
+  durationMin Int?
+  notes       String?
+  energyLevel Int? // 1-10
+  overallRPE  Int? // 1-10
+  status      String   @default("in_progress") // in_progress | completed | skipped
+  createdAt   DateTime @default(now())
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routine          Routine?          @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  workoutSets      WorkoutSet[]
+  recoverySnapshot RecoverySnapshot?
+
+  @@index([userId, date])
+  @@index([routineId])
+}
+
+model WorkoutSet {
+  id          String    @id @default(cuid())
+  sessionId   String
+  exerciseId  String
+  setNumber   Int
+  reps        Int
+  weight      Float
+  rir         Int?
+  rpe         Int?
+  restSeconds Int?
+  isEffective Boolean   @default(false) // Calculado: true si RIR <= 3
+  notes       String?
+  completedAt DateTime?
+
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([exerciseId])
+}
+
+model RecoverySnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  sessionId        String?  @unique
+  date             DateTime @db.Date
+  hrvMs            Float? // SDNN
+  restingHrBpm     Int?
+  sleepHours       Float?
+  steps            Int?
+  activeEnergyKcal Float?
+  spo2             Float?
+  bodyTemperature  Float?
+  respiratoryRate  Float?
+  subjectiveEnergy Int? // 1-10, manual
+  stressLevel      Int? // 1-10, manual
+  source           String   @default("shortcut") // shortcut | manual | xml_import
+  createdAt        DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model BodyMetric {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  weightKg     Float?
+  chestCm      Float?
+  waistCm      Float?
+  hipsCm       Float?
+  leftArmCm    Float?
+  rightArmCm   Float?
+  leftThighCm  Float?
+  rightThighCm Float?
+  calfCm       Float?
+  shouldersCm  Float?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model ProgressPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  imageUrl  String
+  angle     String // front | side | back
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Meal {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  photoUrl    String?
+  description String?
+  calories    Float?
+  proteinG    Float?
+  carbsG      Float?
+  fatG        Float?
+  fiberG      Float?
+  source      String   @default("manual") // ai_photo | manual
+  verified    Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String // streak | pr | milestone | badge
+  name        String
+  description String?
+  value       Json?
+  unlockedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
