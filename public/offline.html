@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión — GymFit</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0f1219;
+      color: #f2f2f2;
+    }
+    .offline-content {
+      text-align: center;
+      padding: 2rem;
+      max-width: 360px;
+    }
+    .offline-icon { font-size: 4rem; margin-bottom: 1rem; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #a3a3a3;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    button {
+      background: #22c55e;
+      color: #0f1219;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+  <div class="offline-content">
+    <div class="offline-icon">📡</div>
+    <h1>Sin conexión</h1>
+    <p>Puedes seguir registrando tu entreno. Los datos se sincronizarán cuando vuelvas a tener conexión.</p>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>
