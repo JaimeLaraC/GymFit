@@ -52,11 +52,11 @@ gantt
 
 - [x] Documentación completa del proyecto
 - [x] Setup Git-Flow (main → develop → feature branches)
-- [ ] Inicializar proyecto Next.js 15
-- [ ] Configurar Tailwind + Shadcn UI
-- [ ] Configurar Prisma + PostgreSQL
-- [ ] Configurar ESLint + Prettier
-- [ ] PWA manifest + service worker básico
+- [x] Inicializar proyecto Next.js 15
+- [x] Configurar Tailwind + Shadcn UI
+- [x] Configurar Prisma + PostgreSQL (esquema con 12 modelos)
+- [x] Configurar ESLint
+- [x] PWA manifest + página offline + meta tags Apple
 
 ---
 
