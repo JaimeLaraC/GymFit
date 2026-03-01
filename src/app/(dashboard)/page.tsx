@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScoreCard } from "@/components/score-card";
+import { calculateE1RM } from "@/lib/calculations";
 import { prisma } from "@/lib/prisma";
+import { calculateScore } from "@/lib/score";
 
 const DEFAULT_USER_ID = "default-user";
 
@@ -16,6 +19,8 @@ function getWeekStart(date: Date): Date {
 
 export default async function HomePage() {
   const thisWeekStart = getWeekStart(new Date());
+  const fourWeeksAgo = new Date(thisWeekStart);
+  fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 21);
 
   const weeklySessions = await prisma.session.findMany({
     where: {
@@ -50,6 +55,101 @@ export default async function HomePage() {
       0
     ),
   };
+
+  const scoreSessions = await prisma.session.findMany({
+    where: {
+      userId: DEFAULT_USER_ID,
+      status: "completed",
+      date: { gte: fourWeeksAgo },
+    },
+    include: {
+      workoutSets: {
+        select: {
+          weight: true,
+          reps: true,
+          rir: true,
+        },
+      },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  const latestRecovery = await prisma.recoverySnapshot.findFirst({
+    where: { userId: DEFAULT_USER_ID },
+    orderBy: { date: "desc" },
+    select: {
+      sleepHours: true,
+      hrvMs: true,
+      restingHrBpm: true,
+      subjectiveEnergy: true,
+    },
+  });
+
+  const weeklyMap = new Map<
+    string,
+    {
+      sessions: number;
+      effectiveSets: number;
+      e1rms: number[];
+    }
+  >(
+    Array.from({ length: 4 }, (_, index) => {
+      const weekDate = new Date(fourWeeksAgo);
+      weekDate.setDate(weekDate.getDate() + index * 7);
+      const weekKey = getWeekStart(weekDate).toISOString().slice(0, 10);
+      return [
+        weekKey,
+        {
+          sessions: 0,
+          effectiveSets: 0,
+          e1rms: [] as number[],
+        },
+      ];
+    })
+  );
+
+  for (const session of scoreSessions) {
+    const weekKey = getWeekStart(session.date).toISOString().slice(0, 10);
+    const weekData = weeklyMap.get(weekKey);
+    if (!weekData) continue;
+
+    weekData.sessions += 1;
+    for (const set of session.workoutSets) {
+      if (set.rir !== null && set.rir <= 3) weekData.effectiveSets += 1;
+      weekData.e1rms.push(calculateE1RM(set.weight, set.reps));
+    }
+  }
+
+  const weeklyScoreData = [...weeklyMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, value], weekIndex) => {
+      const avgE1rm =
+        value.e1rms.length > 0
+          ? value.e1rms.reduce((sum, item) => sum + item, 0) / value.e1rms.length
+          : 0;
+      return {
+        week: weekIndex,
+        sessions: value.sessions,
+        effectiveSets: value.effectiveSets,
+        avgE1rm,
+      };
+    });
+
+  const score = calculateScore({
+    weeklySessions: weeklyScoreData.map((item) => item.sessions),
+    weeklyEffectiveSets: weeklyScoreData.map((item) => item.effectiveSets),
+    targetSetsPerWeek: 40,
+    targetSessionsPerWeek: 4,
+    e1rmTrends: weeklyScoreData.map((item) => ({ week: item.week, avgE1rm: item.avgE1rm })),
+    latestRecovery: latestRecovery
+      ? {
+          sleepHours: latestRecovery.sleepHours,
+          hrvMs: latestRecovery.hrvMs,
+          restingHrBpm: latestRecovery.restingHrBpm,
+          subjectiveEnergy: latestRecovery.subjectiveEnergy,
+        }
+      : null,
+  });
 
   const routines = await prisma.routine.findMany({
     where: {
@@ -90,20 +190,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Score Global</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold font-mono text-primary">—</span>
-            <span className="text-sm text-muted-foreground">/ 100</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            El score se activará cuando completemos la fase de cálculo global.
-          </p>
-        </CardContent>
-      </Card>
+      <ScoreCard score={score} />
 
       <Card>
         <CardHeader className="pb-3">

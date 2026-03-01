@@ -57,3 +57,6 @@ public/workbox-*.js
 logs/
 
 /src/generated/prisma
+
+# Progress photos (user data)
+public/uploads/
