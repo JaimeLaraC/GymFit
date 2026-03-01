@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "6412eb4eb3b91595ebab937f0c69501240e7ba761b3d82510b5cf506ec5c7adc"
+    },
+    "git-workflow": {
+      "source": "bobmatnyc/claude-mpm-skills",
+      "sourceType": "github",
+      "computedHash": "53158ae4cfc8962818628b12c8617255816c84902d02f8e30ba5e5aff01bfc3d"
+    },
+    "nextjs-react-typescript": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "eb995cc826bf48498e0e90969fc7dadfa2ec634002c26cfcfde565134cefa738"
+    },
+    "pwa-development": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "computedHash": "0b8f1e6f78708bc73de3c1fa04c0ad0c3a698fa308fe0311f5078703ca4b6359"
+    },
+    "writing-documentation-with-diataxis": {
+      "source": "sammcj/agentic-coding",
+      "sourceType": "github",
+      "computedHash": "80b05e3bf8a65e2d22b2861e6d39d7d47b643a17f27a7c6c91aa76b99a84cd8c"
+    }
+  }
+}
