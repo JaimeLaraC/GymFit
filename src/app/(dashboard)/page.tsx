@@ -127,6 +127,7 @@ export default async function HomePage() {
       hrvMs: true,
       restingHrBpm: true,
       subjectiveEnergy: true,
+      stressLevel: true,
     },
   });
 
@@ -210,6 +211,7 @@ export default async function HomePage() {
           hrvMs: latestRecovery.hrvMs,
           restingHrBpm: latestRecovery.restingHrBpm,
           subjectiveEnergy: latestRecovery.subjectiveEnergy,
+          stressLevel: latestRecovery.stressLevel,
         }
       : null,
   });

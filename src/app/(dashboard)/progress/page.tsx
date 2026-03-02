@@ -124,10 +124,12 @@ export default async function ProgressPage() {
       where: { userId: DEFAULT_USER_ID },
       orderBy: { date: "desc" },
       select: {
+        source: true,
         sleepHours: true,
         hrvMs: true,
         restingHrBpm: true,
         subjectiveEnergy: true,
+        stressLevel: true,
       },
     }),
     prisma.bodyMetric.findMany({
@@ -273,13 +275,14 @@ export default async function ProgressPage() {
     targetSessionsPerWeek: 4,
     e1rmTrends,
     latestRecovery: latestRecovery
-      ? {
-          sleepHours: latestRecovery.sleepHours,
-          hrvMs: latestRecovery.hrvMs,
-          restingHrBpm: latestRecovery.restingHrBpm,
-          subjectiveEnergy: latestRecovery.subjectiveEnergy,
-        }
-      : null,
+        ? {
+            sleepHours: latestRecovery.sleepHours,
+            hrvMs: latestRecovery.hrvMs,
+            restingHrBpm: latestRecovery.restingHrBpm,
+            subjectiveEnergy: latestRecovery.subjectiveEnergy,
+            stressLevel: latestRecovery.stressLevel,
+          }
+        : null,
   });
 
   const scoreTrendData = weeklyVolumeData.map((item, index) => {
@@ -295,6 +298,7 @@ export default async function ProgressPage() {
             hrvMs: latestRecovery.hrvMs,
             restingHrBpm: latestRecovery.restingHrBpm,
             subjectiveEnergy: latestRecovery.subjectiveEnergy,
+            stressLevel: latestRecovery.stressLevel,
           }
         : null,
     });
@@ -366,6 +370,55 @@ export default async function ProgressPage() {
             </CardHeader>
             <CardContent>
               <ScoreTrendChart data={scoreTrendData} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Estado de recuperación</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {latestRecovery ? (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-md border border-border/80 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">HRV</p>
+                    <p className="font-mono">{latestRecovery.hrvMs?.toFixed(1) ?? "—"} ms</p>
+                  </div>
+                  <div className="rounded-md border border-border/80 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">FC reposo</p>
+                    <p className="font-mono">{latestRecovery.restingHrBpm ?? "—"} bpm</p>
+                  </div>
+                  <div className="rounded-md border border-border/80 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Sueño</p>
+                    <p className="font-mono">
+                      {latestRecovery.sleepHours !== null
+                        ? `${latestRecovery.sleepHours.toFixed(1)} h`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-border/80 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Energía</p>
+                    <p className="font-mono">{latestRecovery.subjectiveEnergy ?? "—"}/10</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Sin snapshots recientes de recuperación.
+                </p>
+              )}
+
+              <div className="flex items-center justify-between">
+                {latestRecovery ? (
+                  <Badge variant="outline">
+                    {latestRecovery.source === "manual" ? "✏️ manual" : "⌚ shortcut"}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Sin datos</Badge>
+                )}
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/progress/recovery">Ver detalle</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
