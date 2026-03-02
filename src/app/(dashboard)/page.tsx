@@ -403,6 +403,15 @@ export default async function HomePage() {
         </Card>
       ) : null}
 
+      <Link href="/nutrition">
+        <Card className="cursor-pointer transition-colors hover:bg-accent">
+          <CardContent className="pt-6 text-center">
+            <span className="text-3xl">🍽️</span>
+            <p className="mt-2 text-sm font-medium">Nutrición</p>
+          </CardContent>
+        </Card>
+      </Link>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Próxima sesión</CardTitle>
