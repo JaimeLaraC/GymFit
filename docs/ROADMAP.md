@@ -146,14 +146,14 @@ gantt
 
 ---
 
-### Fase 7: Gamificación (2 semanas)
+### Fase 7: Gamificación (2 semanas) ✅
 
 **Branch:** `feature/gamification`
 
-- [ ] Sistema de rachas (días/semanas consecutivos)
-- [ ] Alertas de PRs
-- [ ] Logros/badges desbloqueables
-- [ ] Ranking personal (comparación temporal)
+- [x] Sistema de rachas (días/semanas consecutivos)
+- [x] Alertas de PRs
+- [x] Logros/badges desbloqueables
+- [x] Ranking personal (comparación temporal)
 
 ---
 

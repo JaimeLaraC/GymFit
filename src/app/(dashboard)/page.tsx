@@ -6,6 +6,7 @@ import { calculateE1RM } from "@/lib/calculations";
 import { prisma } from "@/lib/prisma";
 import { analyzeSession, ProgressionInput } from "@/lib/progression";
 import { calculateScore } from "@/lib/score";
+import { calculateStreak } from "@/lib/gamification";
 
 const DEFAULT_USER_ID = "default-user";
 
@@ -100,6 +101,14 @@ export default async function HomePage() {
       0
     ),
   };
+
+  const [streak, latestAchievement] = await Promise.all([
+    calculateStreak(DEFAULT_USER_ID),
+    prisma.achievement.findFirst({
+      where: { userId: DEFAULT_USER_ID },
+      orderBy: { unlockedAt: "desc" },
+    }),
+  ]);
 
   const scoreSessions = await prisma.session.findMany({
     where: {
@@ -385,6 +394,34 @@ export default async function HomePage() {
       </div>
 
       <ScoreCard score={score} />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Racha actual</p>
+            <p className="mt-1 text-2xl font-bold font-mono">🔥 {streak.currentDays} días</p>
+            <p className="text-xs text-muted-foreground">
+              Mejor racha: {streak.longestDays} días
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Último logro</p>
+            {latestAchievement ? (
+              <>
+                <p className="mt-1 text-sm font-semibold">{latestAchievement.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {latestAchievement.unlockedAt.toLocaleDateString("es-ES")}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">Aún no hay logros desbloqueados.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {primarySuggestion ? (
         <Card className="border-primary/20 bg-primary/5">
