@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { detectPRs, type PR } from "@/lib/calculations";
-import { calculateStreak } from "@/lib/gamification";
+import { calculateStreak, checkAndUnlockBadges } from "@/lib/gamification";
 import { prisma } from "@/lib/prisma";
 
 interface WorkoutSetPayload {
@@ -168,6 +168,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const newBadges = await checkAndUnlockBadges(userId);
+
     return NextResponse.json(
       {
         ...session,
@@ -178,6 +180,7 @@ export async function POST(request: NextRequest) {
             isNewMilestone: streak.isNewMilestone,
             milestone: streak.milestone,
           },
+          newBadges,
         },
       },
       { status: 201 }

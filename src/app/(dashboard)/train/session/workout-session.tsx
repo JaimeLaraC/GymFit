@@ -237,6 +237,29 @@ export function WorkoutSession({
                     icon: "🏆",
                 }));
 
+                const isNewStreak = gamification?.streak?.isNewMilestone;
+                const streakMilestone = gamification?.streak?.milestone ?? null;
+                if (isNewStreak && streakMilestone) {
+                    newAchievementToasts.push({
+                        id: `streak-${streakMilestone}`,
+                        type: "streak",
+                        title: `Racha de ${streakMilestone} días`,
+                        description: `Llevas ${streakMilestone} días entrenando de forma consistente.`,
+                        icon: "🔥",
+                    });
+                }
+
+                const unlockedBadges = gamification?.newBadges ?? [];
+                unlockedBadges.forEach((badgeText, index) => {
+                    newAchievementToasts.push({
+                        id: `badge-${badgeText}-${index}`,
+                        type: "badge",
+                        title: "Nuevo badge desbloqueado",
+                        description: badgeText,
+                        icon: "✨",
+                    });
+                });
+
                 setUnlockedAchievements(newAchievementToasts);
 
                 if (sessionId) {
