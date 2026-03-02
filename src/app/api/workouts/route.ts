@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { detectPRs, type PR } from "@/lib/calculations";
 import { calculateStreak } from "@/lib/gamification";
 import { prisma } from "@/lib/prisma";
 
@@ -11,6 +12,13 @@ interface WorkoutSetPayload {
 interface ExerciseSetsPayload {
   exerciseId: string;
   sets: WorkoutSetPayload[];
+}
+
+function formatPrTypeLabel(prType: PR["type"]): string {
+  if (prType === "weight") return "peso";
+  if (prType === "reps") return "reps";
+  if (prType === "e1rm") return "e1RM";
+  return "volumen";
 }
 
 export async function POST(request: NextRequest) {
@@ -56,6 +64,85 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const exerciseIds = [...new Set(session.workoutSets.map((set) => set.exerciseId))];
+    const historicalSets = await prisma.workoutSet.findMany({
+      where: {
+        exerciseId: {
+          in: exerciseIds,
+        },
+        sessionId: {
+          not: session.id,
+        },
+        session: {
+          userId,
+          status: "completed",
+        },
+      },
+      select: {
+        exerciseId: true,
+        weight: true,
+        reps: true,
+      },
+    });
+
+    const historicalSetsByExercise = new Map<string, { weight: number; reps: number }[]>();
+    for (const historicalSet of historicalSets) {
+      if (!historicalSetsByExercise.has(historicalSet.exerciseId))
+        historicalSetsByExercise.set(historicalSet.exerciseId, []);
+
+      historicalSetsByExercise.get(historicalSet.exerciseId)?.push({
+        weight: historicalSet.weight,
+        reps: historicalSet.reps,
+      });
+    }
+
+    const currentSetsByExercise = new Map<
+      string,
+      {
+        exerciseName: string;
+        sets: { weight: number; reps: number; rir: number | null }[];
+      }
+    >();
+
+    for (const set of session.workoutSets) {
+      if (!currentSetsByExercise.has(set.exerciseId)) {
+        currentSetsByExercise.set(set.exerciseId, {
+          exerciseName: set.exercise.name,
+          sets: [],
+        });
+      }
+
+      currentSetsByExercise.get(set.exerciseId)?.sets.push({
+        weight: set.weight,
+        reps: set.reps,
+        rir: set.rir,
+      });
+    }
+
+    const prs = [...currentSetsByExercise.entries()].flatMap(([exerciseId, exerciseEntry]) =>
+      detectPRs(
+        exerciseEntry.sets,
+        historicalSetsByExercise.get(exerciseId) ?? [],
+        exerciseEntry.exerciseName,
+        session.date
+      )
+    );
+
+    for (const pr of prs) {
+      await prisma.achievement.create({
+        data: {
+          userId,
+          type: "pr",
+          name: `PR ${pr.type}: ${pr.exerciseName}`,
+          description: `Nuevo récord de ${formatPrTypeLabel(pr.type)}: ${pr.value}`,
+          value: {
+            ...pr,
+            date: pr.date.toISOString(),
+          },
+        },
+      });
+    }
+
     const streak = await calculateStreak(userId);
     if (streak.isNewMilestone && streak.milestone !== null) {
       const streakName = `Racha de ${streak.milestone} días`;
@@ -85,6 +172,7 @@ export async function POST(request: NextRequest) {
       {
         ...session,
         gamification: {
+          prs,
           streak: {
             current: streak.currentDays,
             isNewMilestone: streak.isNewMilestone,

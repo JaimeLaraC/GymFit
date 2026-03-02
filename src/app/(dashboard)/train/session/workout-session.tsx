@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import type {
     JunkVolumeResult,
     ProgressionSuggestion,
     StagnationResult,
 } from "@/lib/progression";
+import type { PR } from "@/lib/calculations";
 
 interface ExerciseForSession {
     id: string;
@@ -43,6 +45,42 @@ interface SessionAnalysis {
     alerts: string[];
 }
 
+interface SessionGamificationResponse {
+    prs?: PR[];
+    streak?: {
+        current: number;
+        isNewMilestone: boolean;
+        milestone: number | null;
+    };
+    newBadges?: string[];
+}
+
+interface WorkoutSaveResponse {
+    id?: string;
+    session?: { id?: string };
+    gamification?: SessionGamificationResponse;
+}
+
+interface SessionAchievementToast {
+    id: string;
+    type: "pr" | "streak" | "badge";
+    title: string;
+    description: string;
+    icon?: string;
+}
+
+const LazyAchievementToast = dynamic(
+    () => import("@/components/achievement-toast").then((mod) => mod.AchievementToast),
+    { ssr: false }
+);
+
+function formatPrLabel(prType: PR["type"]): string {
+    if (prType === "weight") return "Peso";
+    if (prType === "reps") return "Repeticiones";
+    if (prType === "e1rm") return "e1RM";
+    return "Volumen";
+}
+
 export function WorkoutSession({
     exercises,
 }: {
@@ -57,6 +95,7 @@ export function WorkoutSession({
     const [sessionFinished, setSessionFinished] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null);
+    const [unlockedAchievements, setUnlockedAchievements] = useState<SessionAchievementToast[]>([]);
 
     // Session timer
     useEffect(() => {
@@ -184,14 +223,28 @@ export function WorkoutSession({
             });
 
             if (response.ok) {
-                const session = (await response.json()) as { id?: string };
+                const sessionResponse = (await response.json()) as WorkoutSaveResponse;
+                const gamification = sessionResponse.gamification;
+                const sessionId = sessionResponse.id ?? sessionResponse.session?.id;
 
-                if (session.id) {
+                const newAchievementToasts: SessionAchievementToast[] = (
+                    gamification?.prs ?? []
+                ).map((pr, index) => ({
+                    id: `pr-${pr.exerciseName}-${pr.type}-${index}`,
+                    type: "pr",
+                    title: `PR de ${formatPrLabel(pr.type)} en ${pr.exerciseName}`,
+                    description: `${pr.previousBest} → ${pr.value}`,
+                    icon: "🏆",
+                }));
+
+                setUnlockedAchievements(newAchievementToasts);
+
+                if (sessionId) {
                     try {
                         const analysisResponse = await fetch("/api/ai/analyze", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ sessionId: session.id }),
+                            body: JSON.stringify({ sessionId }),
                         });
 
                         if (analysisResponse.ok) {
@@ -257,6 +310,29 @@ export function WorkoutSession({
     if (sessionFinished) {
         return (
             <div className="space-y-6">
+                {unlockedAchievements.length > 0 ? (
+                    <Suspense fallback={null}>
+                        <div className="fixed right-4 top-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2">
+                            {unlockedAchievements.map((achievement) => (
+                                <LazyAchievementToast
+                                    key={achievement.id}
+                                    type={achievement.type}
+                                    title={achievement.title}
+                                    description={achievement.description}
+                                    icon={achievement.icon}
+                                    onDismiss={() =>
+                                        setUnlockedAchievements((currentAchievements) =>
+                                            currentAchievements.filter(
+                                                (item) => item.id !== achievement.id
+                                            )
+                                        )
+                                    }
+                                />
+                            ))}
+                        </div>
+                    </Suspense>
+                ) : null}
+
                 <div className="text-center space-y-2">
                     <p className="text-4xl">🎉</p>
                     <h1 className="text-2xl font-bold">¡Sesión completada!</h1>
