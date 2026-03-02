@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import dynamicImport from "next/dynamic";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { RecoveryChartPanel } from "./recovery-chart-panel";
 
 interface RecoveryPageProps {
   searchParams: Promise<{
@@ -21,14 +21,6 @@ interface RecoveryMetricCard {
 }
 
 export const dynamic = "force-dynamic";
-
-const RecoveryChart = dynamicImport(
-  () => import("@/components/charts/recovery-chart").then((module) => module.RecoveryChart),
-  {
-    ssr: false,
-    loading: () => <div className="h-[250px] animate-pulse rounded-lg bg-muted" />,
-  }
-);
 
 function average(values: Array<number | null>): number | null {
   const filtered = values.filter((value): value is number => value !== null);
@@ -175,7 +167,7 @@ export default async function RecoveryPage({ searchParams }: RecoveryPageProps) 
         <CardContent>
           {hasRecentData ? (
             <Suspense fallback={<div className="h-[250px] animate-pulse rounded-lg bg-muted" />}>
-              <RecoveryChart
+              <RecoveryChartPanel
                 data={snapshots.map((item) => ({
                   date: item.date.toISOString().slice(5, 10),
                   hrv: item.hrvMs,

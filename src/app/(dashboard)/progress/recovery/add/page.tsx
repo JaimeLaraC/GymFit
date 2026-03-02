@@ -13,6 +13,12 @@ interface ManualRecoveryPayload {
   sleepHours?: number;
 }
 
+interface SyncServiceWorkerRegistration extends ServiceWorkerRegistration {
+  sync: {
+    register: (tag: string) => Promise<void>;
+  };
+}
+
 const QUEUE_STORAGE_KEY = "gymfit.recovery.queue.v1";
 
 function getQueue(): ManualRecoveryPayload[] {
@@ -121,8 +127,11 @@ export default function AddRecoveryPage() {
 
         if ("serviceWorker" in navigator) {
           const registration = await navigator.serviceWorker.ready.catch(() => null);
-          const hasSync = typeof SyncManager !== "undefined";
-          if (registration && hasSync) await registration.sync.register("sync-recovery-manual");
+          const hasSync = registration && "sync" in registration;
+          if (hasSync) {
+            const syncRegistration = registration as SyncServiceWorkerRegistration;
+            await syncRegistration.sync.register("sync-recovery-manual");
+          }
         }
 
         setQueuedMessage("Sin conexión: se guardó en cola y se enviará al volver online.");
