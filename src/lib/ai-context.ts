@@ -149,6 +149,7 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
           hrvMs: latestRecovery.hrvMs,
           restingHrBpm: latestRecovery.restingHrBpm,
           subjectiveEnergy: latestRecovery.subjectiveEnergy,
+          stressLevel: latestRecovery.stressLevel,
         }
       : null,
   });
@@ -238,6 +239,13 @@ ${lastSessionExercises.map((exercise) => `  - ${exercise.name}: ${exercise.sets.
 - HRV: ${latestRecovery?.hrvMs ?? "N/D"} ms
 - FC reposo: ${latestRecovery?.restingHrBpm ?? "N/D"} bpm
 - Energía subjetiva: ${latestRecovery?.subjectiveEnergy ?? "N/D"}/10
+- Estrés percibido: ${latestRecovery?.stressLevel ?? "N/D"}/10
+- Pasos: ${latestRecovery?.steps ?? "N/D"}
+- Energía activa: ${latestRecovery?.activeEnergyKcal ?? "N/D"} kcal
+- SpO₂: ${latestRecovery?.spo2 ?? "N/D"}%
+- Temperatura: ${latestRecovery?.bodyTemperature ?? "N/D"} °C
+- Frecuencia respiratoria: ${latestRecovery?.respiratoryRate ?? "N/D"}
+- Fuente: ${latestRecovery?.source ?? "N/D"}
 
 [TENDENCIA 4 SEMANAS]
 - Sesiones por semana: ${weeklyData.map((item) => item.sessions).join(" / ")}

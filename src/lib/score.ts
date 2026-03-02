@@ -12,6 +12,7 @@ export interface ScoreInput {
     hrvMs: number | null;
     restingHrBpm: number | null;
     subjectiveEnergy: number | null;
+    stressLevel?: number | null;
   } | null;
 }
 
@@ -92,23 +93,29 @@ function sleepScore(hours: number | null): number {
 
 function hrvScore(hrv: number | null): number {
   if (hrv === null) return 70;
-  if (hrv >= 60) return 100;
-  if (hrv >= 45) return 80;
-  if (hrv >= 35) return 60;
+  if (hrv >= 60) return 95;
+  if (hrv >= 50) return 85;
+  if (hrv >= 45) return 70;
+  if (hrv >= 38) return 55;
   return 40;
 }
 
 function restingHrScore(restingHr: number | null): number {
   if (restingHr === null) return 70;
-  if (restingHr <= 60) return 100;
-  if (restingHr <= 70) return round(100 - ((restingHr - 60) / 10) * 40);
-  if (restingHr <= 90) return round(60 - ((restingHr - 70) / 20) * 40);
-  return 20;
+  if (restingHr < 60) return 100;
+  if (restingHr <= 70) return round(100 - ((restingHr - 60) / 10) * 30);
+  if (restingHr <= 85) return round(70 - ((restingHr - 70) / 15) * 30);
+  return 40;
 }
 
 function energyScore(energy: number | null): number {
   if (energy === null) return 70;
   return clamp(energy * 10, 10, 100);
+}
+
+function stressScore(stress: number | null | undefined): number {
+  if (stress === null || stress === undefined) return 70;
+  return clamp(110 - stress * 10, 10, 100);
 }
 
 export function calculateRecoveryScore(recovery: ScoreInput["latestRecovery"]): number {
@@ -119,6 +126,7 @@ export function calculateRecoveryScore(recovery: ScoreInput["latestRecovery"]): 
     hrvScore(recovery.hrvMs),
     restingHrScore(recovery.restingHrBpm),
     energyScore(recovery.subjectiveEnergy),
+    stressScore(recovery.stressLevel),
   ];
 
   return round(average(values));
