@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreCard } from "@/components/score-card";
 import { calculateE1RM } from "@/lib/calculations";
 import { prisma } from "@/lib/prisma";
+import { analyzeSession, ProgressionInput } from "@/lib/progression";
 import { calculateScore } from "@/lib/score";
 
 const DEFAULT_USER_ID = "default-user";
@@ -15,6 +16,50 @@ function getWeekStart(date: Date): Date {
   weekStart.setHours(0, 0, 0, 0);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   return weekStart;
+}
+
+function formatPrimarySuggestion(
+  analysis: ReturnType<typeof analyzeSession>
+): { title: string; description: string } | null {
+  const progression =
+    analysis.progressions.find((item) => item.type === "increase_weight") ??
+    analysis.progressions.find((item) => item.type === "decrease_weight") ??
+    analysis.progressions.find((item) => item.type === "deload") ??
+    null;
+
+  if (progression) {
+    const actionLabel =
+      progression.type === "increase_weight"
+        ? "sube"
+        : progression.type === "decrease_weight"
+          ? "baja"
+          : progression.type === "deload"
+            ? "deload"
+            : "ajusta";
+    const weightLabel = progression.newWeight !== null ? ` a ${progression.newWeight} kg` : "";
+
+    return {
+      title: `🏋️ ${progression.exerciseName} → ${actionLabel}${weightLabel}`,
+      description: progression.reason,
+    };
+  }
+
+  const stagnation = analysis.stagnations.find((item) => item.isStagnated);
+  if (stagnation) {
+    return {
+      title: `⚠️ ${stagnation.exerciseName} estancado (${stagnation.weeksSinceProgress} semanas)`,
+      description: stagnation.suggestion,
+    };
+  }
+
+  if (analysis.junkVolume.hasJunkVolume) {
+    return {
+      title: `⚠️ Junk volume ${analysis.junkVolume.percentage}%`,
+      description: analysis.junkVolume.suggestion,
+    };
+  }
+
+  return null;
 }
 
 export default async function HomePage() {
@@ -85,6 +130,24 @@ export default async function HomePage() {
     },
   });
 
+  const latestSession = await prisma.session.findFirst({
+    where: {
+      userId: DEFAULT_USER_ID,
+      status: "completed",
+    },
+    orderBy: { date: "desc" },
+    include: {
+      workoutSets: {
+        include: {
+          exercise: true,
+        },
+        orderBy: {
+          setNumber: "asc",
+        },
+      },
+    },
+  });
+
   const weeklyMap = new Map<
     string,
     {
@@ -151,6 +214,135 @@ export default async function HomePage() {
       : null,
   });
 
+  let primarySuggestion: { title: string; description: string } | null = null;
+
+  if (latestSession && latestSession.workoutSets.length > 0) {
+    const [routineExercises, historicalSessions, weeklySessionsForLatest] = await Promise.all([
+      latestSession.routineId
+        ? prisma.routineExercise.findMany({
+            where: { routineId: latestSession.routineId },
+            select: {
+              exerciseId: true,
+              targetMinReps: true,
+              targetMaxReps: true,
+              targetRIR: true,
+              method: true,
+            },
+          })
+        : Promise.resolve([]),
+      prisma.session.findMany({
+        where: {
+          userId: DEFAULT_USER_ID,
+          status: "completed",
+          date: { lte: latestSession.date },
+        },
+        orderBy: { date: "desc" },
+        take: 40,
+        include: {
+          workoutSets: {
+            include: {
+              exercise: true,
+            },
+          },
+        },
+      }),
+      prisma.session.findMany({
+        where: {
+          userId: DEFAULT_USER_ID,
+          status: "completed",
+          date: {
+            gte: getWeekStart(latestSession.date),
+            lte: latestSession.date,
+          },
+        },
+        include: {
+          workoutSets: {
+            select: {
+              rir: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const routineExerciseMap = new Map(routineExercises.map((item) => [item.exerciseId, item]));
+    const currentSessionByExercise = new Map<
+      string,
+      {
+        exerciseName: string;
+        lastSets: {
+          weight: number;
+          reps: number;
+          rir: number | null;
+        }[];
+      }
+    >();
+
+    for (const set of latestSession.workoutSets) {
+      if (!currentSessionByExercise.has(set.exerciseId)) {
+        currentSessionByExercise.set(set.exerciseId, {
+          exerciseName: set.exercise.name,
+          lastSets: [],
+        });
+      }
+      currentSessionByExercise.get(set.exerciseId)?.lastSets.push({
+        weight: set.weight,
+        reps: set.reps,
+        rir: set.rir,
+      });
+    }
+
+    const progressionInputs: ProgressionInput[] = [...currentSessionByExercise.entries()].map(
+      ([exerciseId, entry]) => {
+        const routineConfig = routineExerciseMap.get(exerciseId);
+        const exerciseHistory = historicalSessions
+          .filter((session) => session.workoutSets.some((set) => set.exerciseId === exerciseId))
+          .slice(0, 6)
+          .map((session) => ({
+            date: session.date,
+            sets: session.workoutSets
+              .filter((set) => set.exerciseId === exerciseId)
+              .map((set) => ({
+                weight: set.weight,
+                reps: set.reps,
+                rir: set.rir,
+              })),
+          }));
+
+        return {
+          exerciseId,
+          exerciseName: entry.exerciseName,
+          method:
+            routineConfig?.method === "double_progression" ||
+            routineConfig?.method === "top_set_backoff" ||
+            routineConfig?.method === "rest_pause"
+              ? routineConfig.method
+              : "standard",
+          targetMinReps: routineConfig?.targetMinReps ?? 6,
+          targetMaxReps: routineConfig?.targetMaxReps ?? 12,
+          targetRIR: routineConfig?.targetRIR ?? 2,
+          lastSets: entry.lastSets,
+          historicalSessions: exerciseHistory,
+        };
+      }
+    );
+
+    const analysis = analyzeSession({
+      exercises: progressionInputs,
+      weeklySets: weeklySessionsForLatest.flatMap((session) => session.workoutSets),
+      latestRecovery: latestRecovery
+        ? {
+            sleepHours: latestRecovery.sleepHours,
+            hrvMs: latestRecovery.hrvMs,
+            restingHrBpm: latestRecovery.restingHrBpm,
+            subjectiveEnergy: latestRecovery.subjectiveEnergy,
+          }
+        : null,
+    });
+
+    primarySuggestion = formatPrimarySuggestion(analysis);
+  }
+
   const routines = await prisma.routine.findMany({
     where: {
       program: {
@@ -191,6 +383,23 @@ export default async function HomePage() {
       </div>
 
       <ScoreCard score={score} />
+
+      {primarySuggestion ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Sugerencia IA
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm font-medium">{primarySuggestion.title}</p>
+            <p className="text-xs text-muted-foreground">{primarySuggestion.description}</p>
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link href="/ai">Ver más en IA →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="pb-3">

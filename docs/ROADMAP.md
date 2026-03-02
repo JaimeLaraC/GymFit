@@ -104,18 +104,18 @@ gantt
 
 ---
 
-### Fase 4: IA — Progresión + Chat (5 semanas)
+### Fase 4: IA — Progresión + Chat (5 semanas) ✅
 
 **Branch:** `feature/ai-engine`
 
-- [ ] Motor de reglas de progresión (doble progresión, top set)
-- [ ] Detección de estancamiento (3-6 semanas)
-- [ ] Detección de junk volume
-- [ ] Cliente OpenAI GPT-5.2
-- [ ] Chat contextual con streaming (SSE)
-- [ ] Prompt system con contexto del usuario
-- [ ] Generación de rutinas con IA
-- [ ] Análisis multivariable
+- [x] Motor de reglas de progresión (doble progresión, top set)
+- [x] Detección de estancamiento (3-6 semanas)
+- [x] Detección de junk volume
+- [x] Cliente OpenAI GPT-5.2
+- [x] Chat contextual con streaming (SSE)
+- [x] Prompt system con contexto del usuario
+- [x] Generación de rutinas con IA
+- [x] Análisis multivariable
 
 ---
 

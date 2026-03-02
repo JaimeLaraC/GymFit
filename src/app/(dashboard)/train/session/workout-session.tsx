@@ -7,6 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import type {
+    JunkVolumeResult,
+    ProgressionSuggestion,
+    StagnationResult,
+} from "@/lib/progression";
 
 interface ExerciseForSession {
     id: string;
@@ -31,6 +36,13 @@ interface ExerciseLog {
     sets: SetLog[];
 }
 
+interface SessionAnalysis {
+    progressions: ProgressionSuggestion[];
+    stagnations: StagnationResult[];
+    junkVolume: JunkVolumeResult;
+    alerts: string[];
+}
+
 export function WorkoutSession({
     exercises,
 }: {
@@ -44,6 +56,7 @@ export function WorkoutSession({
     const [isResting, setIsResting] = useState(false);
     const [sessionFinished, setSessionFinished] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null);
 
     // Session timer
     useEffect(() => {
@@ -171,6 +184,26 @@ export function WorkoutSession({
             });
 
             if (response.ok) {
+                const session = (await response.json()) as { id?: string };
+
+                if (session.id) {
+                    try {
+                        const analysisResponse = await fetch("/api/ai/analyze", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ sessionId: session.id }),
+                        });
+
+                        if (analysisResponse.ok) {
+                            const nextAnalysis =
+                                (await analysisResponse.json()) as SessionAnalysis;
+                            setAnalysis(nextAnalysis);
+                        }
+                    } catch (analysisError) {
+                        console.error("Error analyzing session:", analysisError);
+                    }
+                }
+
                 setSessionFinished(true);
             }
         } catch (error) {
@@ -211,6 +244,14 @@ export function WorkoutSession({
                 ),
         0
     );
+
+    function getProgressionBadge(suggestion: ProgressionSuggestion): string {
+        if (suggestion.type === "increase_weight") return "↑ Sube";
+        if (suggestion.type === "decrease_weight") return "↓ Baja";
+        if (suggestion.type === "deload") return "⏸ Deload";
+        if (suggestion.type === "change_exercise") return "↺ Cambia";
+        return "→ Mantén";
+    }
 
     // =================== SESSION FINISHED ===================
     if (sessionFinished) {
@@ -279,6 +320,91 @@ export function WorkoutSession({
                             );
                         })}
                 </div>
+
+                {analysis ? (
+                    <div className="space-y-3">
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm">
+                                    Sugerencias de progresión IA
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {analysis.progressions.length > 0 ? (
+                                    analysis.progressions.map((suggestion, index) => (
+                                        <div
+                                            key={`${suggestion.exerciseName}-${index}`}
+                                            className="flex items-start justify-between gap-3 rounded-md border border-border/80 px-3 py-2"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    {suggestion.exerciseName}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {suggestion.reason}
+                                                </p>
+                                            </div>
+                                            <Badge variant="outline">
+                                                {getProgressionBadge(suggestion)}
+                                            </Badge>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        Sin sugerencias de progresión disponibles.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {analysis.stagnations.some((item) => item.isStagnated) ? (
+                            <Card className="border-red-500/30 bg-red-500/5">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm text-red-600">
+                                        Alertas de estancamiento
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    {analysis.stagnations
+                                        .filter((item) => item.isStagnated)
+                                        .map((item, index) => (
+                                            <p key={`${item.exerciseName}-${index}`} className="text-sm">
+                                                ⚠️ {item.exerciseName}: {item.suggestion}
+                                            </p>
+                                        ))}
+                                </CardContent>
+                            </Card>
+                        ) : null}
+
+                        {analysis.junkVolume.hasJunkVolume ? (
+                            <Card className="border-yellow-500/30 bg-yellow-500/5">
+                                <CardContent className="pt-6">
+                                    <p className="text-sm font-medium">
+                                        Junk volume: {analysis.junkVolume.percentage}%
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {analysis.junkVolume.suggestion}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ) : null}
+
+                        {analysis.alerts.length > 0 ? (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm">Alertas globales</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-1">
+                                    {analysis.alerts.map((alert, index) => (
+                                        <p key={index} className="text-xs text-muted-foreground">
+                                            • {alert}
+                                        </p>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 <Button asChild className="w-full" size="lg">
                     <Link href="/train">← Volver a entrenar</Link>
