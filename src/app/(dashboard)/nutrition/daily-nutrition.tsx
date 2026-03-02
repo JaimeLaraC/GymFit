@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { NutritionTarget } from "@/lib/nutrition-targets";
 
 interface MealItem {
   id: string;
@@ -19,18 +20,9 @@ interface MealItem {
   date: Date | string;
 }
 
-interface NutritionTargetSnapshot {
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  fiberG: number;
-  label: string;
-}
-
 interface DailyNutritionProps {
   meals: MealItem[];
-  targets: NutritionTargetSnapshot;
+  targets: NutritionTarget;
   goal: string;
 }
 

@@ -1,28 +1,9 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { calculateTargets } from "@/lib/nutrition-targets";
 import { DailyNutrition } from "./daily-nutrition";
 
-interface NutritionTargetSnapshot {
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  fiberG: number;
-  label: string;
-}
-
 export const dynamic = "force-dynamic";
-
-function calculateBaselineTargets(weightKg: number): NutritionTargetSnapshot {
-  return {
-    calories: Math.round(weightKg * 30),
-    proteinG: Math.round(weightKg * 2),
-    carbsG: Math.round(weightKg * 3.5),
-    fatG: Math.round(weightKg * 0.9),
-    fiberG: 30,
-    label: "Objetivo base",
-  };
-}
 
 export default async function NutritionPage() {
   const [user, latestWeight, todayMeals] = await Promise.all([
@@ -56,7 +37,7 @@ export default async function NutritionPage() {
   ]);
 
   const weight = latestWeight?.weightKg ?? 75;
-  const targets = calculateBaselineTargets(weight);
+  const targets = calculateTargets(weight, user?.goal ?? "hypertrophy");
 
   return (
     <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-muted" />}>
