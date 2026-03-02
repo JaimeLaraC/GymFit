@@ -132,17 +132,17 @@ gantt
 
 ---
 
-### Fase 6: Nutrición (4 semanas)
+### Fase 6: Nutrición (4 semanas) ✅
 
 **Branch:** `feature/nutrition`
 
-- [ ] Endpoint de análisis de foto con GPT-5.2 Vision
-- [ ] Interfaz de captura de foto
-- [ ] Chat de verificación post-análisis
-- [ ] Registro manual de comidas
-- [ ] Seguimiento diario (calorías/macros)
-- [ ] Objetivos por fase (volumen/definición)
-- [ ] Tendencias semanales de nutrición
+- [x] Endpoint de análisis de foto con GPT-5.2 Vision
+- [x] Interfaz de captura de foto
+- [x] Chat de verificación post-análisis
+- [x] Registro manual de comidas
+- [x] Seguimiento diario (calorías/macros)
+- [x] Objetivos por fase (volumen/definición)
+- [x] Tendencias semanales de nutrición
 
 ---
 
