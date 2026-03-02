@@ -23,6 +23,7 @@ export interface ProgressionInput {
 }
 
 export interface ProgressionSuggestion {
+  exerciseName: string;
   type: "increase_weight" | "maintain" | "decrease_weight" | "deload" | "change_exercise";
   newWeight: number | null;
   newRepRange: {
@@ -34,6 +35,7 @@ export interface ProgressionSuggestion {
 }
 
 export interface StagnationResult {
+  exerciseName: string;
   isStagnated: boolean;
   weeksSinceProgress: number;
   suggestion: string;
@@ -84,6 +86,7 @@ export function evaluateDoubleProgression(input: ProgressionInput): ProgressionS
   const { lastSets, targetMaxReps, targetMinReps, targetRIR } = input;
   if (lastSets.length === 0) {
     return {
+      exerciseName: input.exerciseName,
       type: "maintain",
       newWeight: null,
       newRepRange: null,
@@ -101,6 +104,7 @@ export function evaluateDoubleProgression(input: ProgressionInput): ProgressionS
     const increment = getIncrement(weight);
     const nextWeight = roundToNearestHalf(weight + increment);
     return {
+      exerciseName: input.exerciseName,
       type: "increase_weight",
       newWeight: nextWeight,
       newRepRange: { min: targetMinReps, max: targetMaxReps },
@@ -117,6 +121,7 @@ export function evaluateDoubleProgression(input: ProgressionInput): ProgressionS
     const reduction = roundToNearestHalf(weight * 0.1);
     const nextWeight = roundToNearestHalf(Math.max(weight - reduction, 0));
     return {
+      exerciseName: input.exerciseName,
       type: "decrease_weight",
       newWeight: nextWeight,
       newRepRange: { min: targetMinReps, max: targetMaxReps },
@@ -126,6 +131,7 @@ export function evaluateDoubleProgression(input: ProgressionInput): ProgressionS
   }
 
   return {
+    exerciseName: input.exerciseName,
     type: "maintain",
     newWeight: roundToNearestHalf(weight),
     newRepRange: null,
@@ -141,6 +147,7 @@ export function detectStagnation(input: ProgressionInput): StagnationResult {
 
   if (sessions.length < 3) {
     return {
+      exerciseName: input.exerciseName,
       isStagnated: false,
       weeksSinceProgress: 0,
       suggestion: "Aún no hay suficientes sesiones para detectar meseta.",
@@ -171,6 +178,7 @@ export function detectStagnation(input: ProgressionInput): StagnationResult {
 
   if (!isStagnated) {
     return {
+      exerciseName: input.exerciseName,
       isStagnated: false,
       weeksSinceProgress,
       suggestion: "La progresión sigue activa en este ejercicio.",
@@ -179,6 +187,7 @@ export function detectStagnation(input: ProgressionInput): StagnationResult {
 
   if (weeksSinceProgress >= 5) {
     return {
+      exerciseName: input.exerciseName,
       isStagnated: true,
       weeksSinceProgress,
       suggestion:
@@ -187,6 +196,7 @@ export function detectStagnation(input: ProgressionInput): StagnationResult {
   }
 
   return {
+    exerciseName: input.exerciseName,
     isStagnated: true,
     weeksSinceProgress,
     suggestion:
@@ -242,11 +252,9 @@ export function analyzeSession(input: AnalyzeSessionInput): PostSessionAnalysis 
 
   const alerts: string[] = [];
 
-  for (const [index, stagnation] of stagnations.entries()) {
+  for (const stagnation of stagnations) {
     if (!stagnation.isStagnated) continue;
-    alerts.push(
-      `${input.exercises[index].exerciseName}: estancado ${stagnation.weeksSinceProgress} semanas.`
-    );
+    alerts.push(`${stagnation.exerciseName}: estancado ${stagnation.weeksSinceProgress} semanas.`);
   }
 
   if (junkVolume.hasJunkVolume) alerts.push(junkVolume.suggestion);
