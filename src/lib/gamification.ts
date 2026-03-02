@@ -1,5 +1,6 @@
 import { calculateE1RM } from "@/lib/calculations";
 import { prisma } from "@/lib/prisma";
+import { calculateScore } from "@/lib/score";
 
 export interface StreakResult {
   currentDays: number;
@@ -27,6 +28,14 @@ export interface UserStats {
   totalPRs: number;
   firstSessionDate: Date | null;
   bodyweightChange: number;
+}
+
+export interface RankingComparison {
+  period: string;
+  scoreChange: number;
+  volumeChange: number;
+  strengthChange: number;
+  sessionsChange: number;
 }
 
 const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 90, 180, 365];
@@ -183,6 +192,17 @@ function getBestLiftE1rm(
     const e1rm = calculateE1RM(set.weight, set.reps);
     return Math.max(bestValue, e1rm);
   }, 0);
+}
+
+function getWeekStart(date: Date): Date {
+  const normalizedDate = new Date(date);
+  normalizedDate.setHours(0, 0, 0, 0);
+  normalizedDate.setDate(normalizedDate.getDate() - normalizedDate.getDay());
+  return normalizedDate;
+}
+
+function round(value: number): number {
+  return Math.round(value * 10) / 10;
 }
 
 export async function calculateStreak(userId: string): Promise<StreakResult> {
@@ -369,4 +389,185 @@ export async function checkAndUnlockBadges(userId: string): Promise<string[]> {
   }
 
   return newBadges;
+}
+
+interface RankingSnapshot {
+  score: number;
+  volume: number;
+  strength: number;
+  sessions: number;
+}
+
+async function getRankingSnapshot(userId: string, windowEndDate: Date): Promise<RankingSnapshot> {
+  const windowStartDate = new Date(windowEndDate);
+  windowStartDate.setDate(windowStartDate.getDate() - 27);
+  windowStartDate.setHours(0, 0, 0, 0);
+
+  const [sessions, latestRecovery] = await Promise.all([
+    prisma.session.findMany({
+      where: {
+        userId,
+        status: "completed",
+        date: {
+          gte: windowStartDate,
+          lte: windowEndDate,
+        },
+      },
+      include: {
+        workoutSets: {
+          select: {
+            weight: true,
+            reps: true,
+            rir: true,
+          },
+        },
+      },
+      orderBy: {
+        date: "asc",
+      },
+    }),
+    prisma.recoverySnapshot.findFirst({
+      where: {
+        userId,
+        date: {
+          lte: windowEndDate,
+        },
+      },
+      orderBy: {
+        date: "desc",
+      },
+      select: {
+        sleepHours: true,
+        hrvMs: true,
+        restingHrBpm: true,
+        subjectiveEnergy: true,
+        stressLevel: true,
+      },
+    }),
+  ]);
+
+  if (sessions.length === 0) {
+    return {
+      score: 0,
+      volume: 0,
+      strength: 0,
+      sessions: 0,
+    };
+  }
+
+  const weekMap = new Map<
+    string,
+    {
+      sessions: number;
+      effectiveSets: number;
+      e1rms: number[];
+    }
+  >(
+    Array.from({ length: 4 }, (_, weekIndex) => {
+      const weekDate = new Date(windowStartDate);
+      weekDate.setDate(weekDate.getDate() + weekIndex * 7);
+      const weekKey = getWeekStart(weekDate).toISOString().slice(0, 10);
+      return [
+        weekKey,
+        {
+          sessions: 0,
+          effectiveSets: 0,
+          e1rms: [] as number[],
+        },
+      ];
+    })
+  );
+
+  for (const session of sessions) {
+    const weekKey = getWeekStart(session.date).toISOString().slice(0, 10);
+    const weekData = weekMap.get(weekKey);
+    if (!weekData) continue;
+
+    weekData.sessions += 1;
+    for (const set of session.workoutSets) {
+      if (set.rir !== null && set.rir <= 3) weekData.effectiveSets += 1;
+      weekData.e1rms.push(calculateE1RM(set.weight, set.reps));
+    }
+  }
+
+  const weeklyData = [...weekMap.entries()]
+    .sort(([weekA], [weekB]) => weekA.localeCompare(weekB))
+    .map(([, value], weekIndex) => {
+      const averageE1rm =
+        value.e1rms.length > 0
+          ? value.e1rms.reduce((sum, item) => sum + item, 0) / value.e1rms.length
+          : 0;
+      return {
+        week: weekIndex,
+        sessions: value.sessions,
+        effectiveSets: value.effectiveSets,
+        avgE1rm: averageE1rm,
+      };
+    });
+
+  const score = calculateScore({
+    weeklySessions: weeklyData.map((item) => item.sessions),
+    weeklyEffectiveSets: weeklyData.map((item) => item.effectiveSets),
+    targetSetsPerWeek: 40,
+    targetSessionsPerWeek: 4,
+    e1rmTrends: weeklyData.map((item) => ({ week: item.week, avgE1rm: item.avgE1rm })),
+    latestRecovery: latestRecovery
+      ? {
+          sleepHours: latestRecovery.sleepHours,
+          hrvMs: latestRecovery.hrvMs,
+          restingHrBpm: latestRecovery.restingHrBpm,
+          subjectiveEnergy: latestRecovery.subjectiveEnergy,
+          stressLevel: latestRecovery.stressLevel,
+        }
+      : null,
+  });
+
+  const allSets = sessions.flatMap((session) => session.workoutSets);
+  const volume = allSets.reduce((sum, set) => sum + set.weight * set.reps, 0);
+  const strength =
+    allSets.length > 0
+      ? allSets.reduce((sum, set) => sum + calculateE1RM(set.weight, set.reps), 0) / allSets.length
+      : 0;
+
+  return {
+    score: score.total,
+    volume: round(volume),
+    strength: round(strength),
+    sessions: sessions.length,
+  };
+}
+
+function calculatePercentChange(currentValue: number, previousValue: number): number {
+  if (previousValue <= 0) {
+    if (currentValue <= 0) return 0;
+    return 100;
+  }
+
+  return round(((currentValue - previousValue) / previousValue) * 100);
+}
+
+export async function calculateRanking(userId: string): Promise<RankingComparison[]> {
+  const rankingWindows = [4, 8, 12];
+  const currentDate = new Date();
+  currentDate.setHours(23, 59, 59, 999);
+
+  const currentSnapshot = await getRankingSnapshot(userId, currentDate);
+  const comparisons: RankingComparison[] = [];
+
+  for (const weekWindow of rankingWindows) {
+    const referenceDate = new Date(currentDate);
+    referenceDate.setDate(referenceDate.getDate() - weekWindow * 7);
+
+    const previousSnapshot = await getRankingSnapshot(userId, referenceDate);
+
+    comparisons.push({
+      period: `${weekWindow} semanas`,
+      scoreChange: round(currentSnapshot.score - previousSnapshot.score),
+      volumeChange: calculatePercentChange(currentSnapshot.volume, previousSnapshot.volume),
+      strengthChange: calculatePercentChange(currentSnapshot.strength, previousSnapshot.strength),
+      sessionsChange: currentSnapshot.sessions - previousSnapshot.sessions,
+    });
+  }
+
+  return comparisons;
 }
