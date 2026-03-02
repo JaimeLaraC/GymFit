@@ -119,16 +119,16 @@ gantt
 
 ---
 
-### Fase 5: Apple Watch — Shortcuts (2 semanas)
+### Fase 5: Apple Watch — Shortcuts (2 semanas) ✅
 
 **Branch:** `feature/apple-watch`
 
-- [ ] Endpoint POST /api/recovery con Bearer auth
-- [ ] Validación de Recovery Snapshots con Zod
-- [ ] Fallback automático (media 7 días)
-- [ ] Documentar el Shortcut de iOS (ya hecho)
-- [ ] Integrar recovery data con el score global
-- [ ] Vista de métricas fisiológicas
+- [x] Endpoint POST /api/recovery con Bearer auth
+- [x] Validación de Recovery Snapshots con Zod
+- [x] Fallback automático (media 7 días)
+- [x] Documentar el Shortcut de iOS (ya hecho)
+- [x] Integrar recovery data con el score global
+- [x] Vista de métricas fisiológicas
 
 ---
 
