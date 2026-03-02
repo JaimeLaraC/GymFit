@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { applyFallback } from "@/lib/recovery-fallback";
 
 const recoverySchema = z.object({
   userId: z.string().trim().min(1).default("default-user"),
@@ -65,39 +66,35 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
 
+  const today = getTodayDate();
+  const filledData = await applyFallback(parsed.data.userId, {
+    hrvMs: parsed.data.hrvMs,
+    restingHrBpm: parsed.data.restingHrBpm,
+    sleepHours: parsed.data.sleepHours,
+    steps: parsed.data.steps,
+    activeEnergyKcal: parsed.data.activeEnergyKcal,
+    spo2: parsed.data.spo2,
+    bodyTemperature: parsed.data.bodyTemperature,
+    respiratoryRate: parsed.data.respiratoryRate,
+    subjectiveEnergy: parsed.data.subjectiveEnergy,
+    stressLevel: parsed.data.stressLevel,
+  });
+
   const snapshot = await prisma.recoverySnapshot.upsert({
     where: {
       userId_date: {
         userId: parsed.data.userId,
-        date: getTodayDate(),
+        date: today,
       },
     },
     update: {
-      hrvMs: parsed.data.hrvMs,
-      restingHrBpm: parsed.data.restingHrBpm,
-      sleepHours: parsed.data.sleepHours,
-      steps: parsed.data.steps,
-      activeEnergyKcal: parsed.data.activeEnergyKcal,
-      spo2: parsed.data.spo2,
-      bodyTemperature: parsed.data.bodyTemperature,
-      respiratoryRate: parsed.data.respiratoryRate,
-      subjectiveEnergy: parsed.data.subjectiveEnergy,
-      stressLevel: parsed.data.stressLevel,
+      ...filledData,
       source: "shortcut",
     },
     create: {
       userId: parsed.data.userId,
-      date: getTodayDate(),
-      hrvMs: parsed.data.hrvMs,
-      restingHrBpm: parsed.data.restingHrBpm,
-      sleepHours: parsed.data.sleepHours,
-      steps: parsed.data.steps,
-      activeEnergyKcal: parsed.data.activeEnergyKcal,
-      spo2: parsed.data.spo2,
-      bodyTemperature: parsed.data.bodyTemperature,
-      respiratoryRate: parsed.data.respiratoryRate,
-      subjectiveEnergy: parsed.data.subjectiveEnergy,
-      stressLevel: parsed.data.stressLevel,
+      date: today,
+      ...filledData,
       source: "shortcut",
     },
   });
